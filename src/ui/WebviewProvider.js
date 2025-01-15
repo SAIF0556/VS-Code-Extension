@@ -6,12 +6,14 @@ class WebviewProvider {
     constructor(context) {
         this.context = context;
         this._panel = null;
+        this._view = null;
     }
 
     showMainInterface() {
+        this._view = 'main';
+        
         if (this._panel) {
-            this._panel.reveal();
-            return;
+            this._panel.dispose();
         }
 
         this._panel = vscode.window.createWebviewPanel(
@@ -26,11 +28,22 @@ class WebviewProvider {
 
         this._panel.webview.html = this._getMainInterfaceContent();
 
-        // Handle messages from webview
         this._panel.webview.onDidReceiveMessage(async (message) => {
+            console.log('Received message:', message);
             switch (message.command) {
                 case 'viewProjects':
-                    this.showProjectsView();
+                    await this.showProjectsView();
+                    break;
+                
+                case 'logout':
+                    try {
+                        await vscode.commands.executeCommand('extension.logout');
+                        if (this._panel) {
+                            this._panel.dispose();
+                        }
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to logout: ${error.message}`);
+                    }
                     break;
                     
                 case 'saveProject':
@@ -44,8 +57,6 @@ class WebviewProvider {
                         if (projectName) {
                             await ProjectManager.saveProject(projectName);
                             vscode.window.showInformationMessage(`Project "${projectName}" saved successfully!`);
-                            // Refresh projects view if it's open
-                            this._handleViewProjects();
                         }
                     } catch (error) {
                         vscode.window.showErrorMessage(`Failed to save project: ${error.message}`);
@@ -59,20 +70,72 @@ class WebviewProvider {
         });
     }
 
+    async showProjectsView() {
+        this._view = 'projects';
+        
+        if (this._panel) {
+            this._panel.dispose();
+        }
+
+        this._panel = vscode.window.createWebviewPanel(
+            'firebaseProjects',
+            'Firebase Projects',
+            vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true
+            }
+        );
+
+        this._panel.webview.html = this._getProjectsViewContent();
+
+        this._panel.webview.onDidReceiveMessage(async message => {
+            console.log('Projects view received message:', message);
+            switch (message.command) {
+                case 'deleteProject':
+                    await this._handleDeleteProject(message.projectId);
+                    break;
+                case 'updateProject':
+                    await this._handleUpdateProject(message.projectId, message.newName);
+                    break;
+                case 'refreshProjects':
+                    await this._handleViewProjects();
+                    break;
+                case 'backToMain':
+                    console.log('Back to main requested');
+                    this.showMainInterface();
+                    break;
+            }
+        });
+
+        this._panel.onDidDispose(() => {
+            this._panel = null;
+        });
+
+        await this._handleViewProjects();
+    }
+
     async _handleViewProjects() {
         try {
             const projects = await ProjectManager.listProjects();
-            if (this._panel) {
-                this._panel.webview.postMessage({
-                    command: 'displayProjects',
-                    projects: projects.map(project => ({
-                        ...project,
-                        createdAt: project.createdAt?.toDate?.().toLocaleString() || 'Unknown date',
-                        updatedAt: project.updatedAt?.toDate?.().toLocaleString() || 'Unknown date'
-                    }))
-                });
+            if (!this._panel) {
+                return;
             }
+            
+            const formattedProjects = projects.map(project => ({
+                id: project.id,
+                projectName: project.projectName,
+                files: project.files || [],
+                createdAt: project.createdAt?.toDate?.().toLocaleString() || 'Unknown date',
+                updatedAt: project.updatedAt?.toDate?.().toLocaleString() || 'Unknown date'
+            }));
+
+            this._panel.webview.postMessage({
+                command: 'displayProjects',
+                projects: formattedProjects
+            });
         } catch (error) {
+            console.error('Error loading projects:', error);
             vscode.window.showErrorMessage(`Failed to load projects: ${error.message}`);
         }
     }
@@ -105,48 +168,6 @@ class WebviewProvider {
         }
     }
 
-    showProjectsView() {
-        // Dispose of existing panel if it exists
-        if (this._panel) {
-            this._panel.dispose();
-        }
-
-        this._panel = vscode.window.createWebviewPanel(
-            'firebaseProjects',
-            'Firebase Projects',
-            vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true
-            }
-        );
-
-        this._panel.webview.html = this._getProjectsViewContent();
-
-        this._panel.webview.onDidReceiveMessage(async message => {
-            switch (message.command) {
-                case 'deleteProject':
-                    await this._handleDeleteProject(message.projectId);
-                    break;
-                case 'updateProject':
-                    await this._handleUpdateProject(message.projectId, message.newName);
-                    break;
-                case 'refreshProjects':
-                    await this._handleViewProjects();
-                    break;
-                case 'backToMain':
-                    this.showMainInterface();
-                    break;
-            }
-        });
-
-        this._panel.onDidDispose(() => {
-            this._panel = null;
-        });
-
-        this._handleViewProjects();
-    }
-
     _getMainInterfaceContent() {
         return `
         <!DOCTYPE html>
@@ -162,6 +183,9 @@ class WebviewProvider {
                 .container {
                     max-width: 800px;
                     margin: 0 auto;
+                    min-height: calc(100vh - 40px);
+                    display: flex;
+                    flex-direction: column;
                 }
                 .welcome-section {
                     text-align: center;
@@ -196,6 +220,19 @@ class WebviewProvider {
                 button:hover {
                     background-color: var(--vscode-button-hoverBackground);
                 }
+                .footer {
+                    margin-top: auto;
+                    padding-top: 20px;
+                }
+                .logout-btn {
+                    background-color: #dc3545;
+                    color: white;
+                    max-width: 200px;
+                    margin: 0 auto;
+                }
+                .logout-btn:hover {
+                    background-color: #c82333;
+                }
             </style>
         </head>
         <body>
@@ -218,17 +255,26 @@ class WebviewProvider {
                         <button onclick="saveProject()">Save Project</button>
                     </div>
                 </div>
+
+                <div class="footer">
+                    <button class="logout-btn" onclick="logout()">Logout</button>
+                </div>
             </div>
 
             <script>
                 const vscode = acquireVsCodeApi();
                 
                 function viewProjects() {
+                    console.log('View projects clicked');
                     vscode.postMessage({ command: 'viewProjects' });
                 }
                 
                 function saveProject() {
                     vscode.postMessage({ command: 'saveProject' });
+                }
+
+                function logout() {
+                    vscode.postMessage({ command: 'logout' });
                 }
             </script>
         </body>
@@ -319,10 +365,10 @@ class WebviewProvider {
                     background-color: var(--vscode-button-hoverBackground);
                 }
                 .delete-btn {
-                    background-color: var(--vscode-errorForeground);
+                    background-color: #dc3545;
                 }
                 .delete-btn:hover {
-                    opacity: 0.9;
+                    background-color: #c82333;
                 }
                 .no-projects {
                     text-align: center;
@@ -336,7 +382,7 @@ class WebviewProvider {
                 <div class="header">
                     <h1>Firebase Projects</h1>
                     <div class="nav-buttons">
-                        <button onclick="backToMain()">Back to Dashboard</button>
+                        <button id="backBtn" onclick="backToMain()">Back to Dashboard</button>
                         <button onclick="refreshProjects()">Refresh</button>
                     </div>
                 </div>
@@ -353,6 +399,7 @@ class WebviewProvider {
                 }
 
                 function backToMain() {
+                    console.log('Back to main clicked');
                     vscode.postMessage({ command: 'backToMain' });
                 }
 
@@ -373,6 +420,7 @@ class WebviewProvider {
 
                 window.addEventListener('message', event => {
                     const message = event.data;
+                    console.log('Received message in projects view:', message);
                     switch (message.command) {
                         case 'displayProjects':
                             displayProjects(message.projects);
