@@ -53,7 +53,7 @@
         "command": "extension.showMainInterface",
         "title": "Firebase: Show Dashboard"
       },
-       {
+      {
         "command": "extension.showMainInterface",
         "title": "Firebase: Show Dashboard"
       },
@@ -68,7 +68,36 @@
     ]
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
     "firebase": "^9.x.x",
     "node-fetch": "^2.x.x"
-  }
+  },
+   "devDependencies": {
+    "electron-builder": "^24.0.0",
+    "@vscode/vsce": "^2.15.0",
+    "electron": "^24.0.0"
+  },
+  "scripts": {
+    "package": "vsce package",
+    "build:win": "electron-builder --win",
+    "build:msix": "node build.js",
+    "deploy": "vsce publish"
+  },
+  "build": {
+    "appId": "com.saif.firebase-plugin",
+    "productName": "Saif Firebase Plugin",
+    "win": {
+      "target": "msix",
+      "icon": "resources/firebase.ico",
+      "certificateFile": "certificate.pfx",
+      "certificatePassword": "YourPassword123!"
+    },
+    "msix": {
+      "displayName": "Saif Firebase Plugin",
+      "publisherDisplayName": "Saif Developer",
+      "publisher": "CN=YourCompanyName",
+      "identityName": "SaifFirebasePlugin",
+      "languages": ["en-US"],
+      "applicationId": "SaifFirebasePlugin"
+    }}
 }

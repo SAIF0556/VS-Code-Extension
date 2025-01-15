@@ -1,0 +1,36 @@
+appId: com.saif.firebase-plugin
+productName: Saif Firebase Plugin
+directories:
+  buildResources: build
+  output: dist
+files:
+  - "**/*"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,thumbs.db,.gitignore,.gitattributes}"
+win:
+  target: msix
+  icon: resources/firebase.ico
+  certificateFile: certificate.pfx
+  certificatePassword: smsaif7324923485
+  artifactName: "${productName}-Setup-${version}.${ext}"
+msix:
+  displayName: Saif Firebase Plugin
+  publisherDisplayName: Saif Developer
+  publisher: CN=SaifDeveloper
+  identityName: SaifDeveloper.FirebasePlugin
+  applicationId: SaifDeveloper.FirebasePlugin
+  languages: en-US
+  addAutoLaunch: false
+  installerIcon: resources/firebase.ico
+  uninstallDisplayName: Saif Firebase Plugin
+  capabilities:
+    - internetClient
+  # Add store-specific options if you plan to publish to Microsoft Store
+  # store:
+  #   publish: true

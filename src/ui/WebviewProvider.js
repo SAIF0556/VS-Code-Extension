@@ -98,8 +98,11 @@ class WebviewProvider {
                 case 'updateProject':
                     await this._handleUpdateProject(message.projectId, message.newName);
                     break;
+                case 'syncProject':
+                    await this._handleSyncProject(message.projectId);
+                    break;
                 case 'refreshProjects':
-                    await this._handleViewProjects();
+                    await this._handleViewProjects(); 
                     break;
                 case 'backToMain':
                     console.log('Back to main requested');
@@ -165,6 +168,17 @@ class WebviewProvider {
             vscode.window.showInformationMessage('Project updated successfully');
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to update project: ${error.message}`);
+        }
+    }
+
+    async _handleSyncProject(projectId) {
+        try {
+            await ProjectManager.syncProject(projectId);
+            await this._handleViewProjects();
+            this._panel.webview.postMessage({ command: 'syncComplete' });
+            vscode.window.showInformationMessage('Project synced successfully');
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to sync project: ${error.message}`);
         }
     }
 
@@ -351,7 +365,6 @@ class WebviewProvider {
                 .actions {
                     display: flex;
                     gap: 10px;
-                    margin-top: 15px;
                 }
                 button {
                     background-color: var(--vscode-button-background);
@@ -369,6 +382,30 @@ class WebviewProvider {
                 }
                 .delete-btn:hover {
                     background-color: #c82333;
+                }
+                .sync-btn {
+                    background-color: #28a745;
+                }
+                .sync-btn:hover {
+                    background-color: #218838;
+                }
+                .update-form {
+                    margin-top: 10px;
+                    padding: 10px;
+                    border: 1px solid var(--vscode-widget-border);
+                    border-radius: 4px;
+                }
+                .name-input {
+                    padding: 6px;
+                    margin-right: 8px;
+                    border: 1px solid var(--vscode-input-border);
+                    border-radius: 4px;
+                    background: var(--vscode-input-background);
+                    color: var(--vscode-input-foreground);
+                }
+                .cancel-btn {
+                    background-color: var(--vscode-button-secondaryBackground);
+                    color: var(--vscode-button-secondaryForeground);
                 }
                 .no-projects {
                     text-align: center;
@@ -399,31 +436,54 @@ class WebviewProvider {
                 }
 
                 function backToMain() {
-                    console.log('Back to main clicked');
                     vscode.postMessage({ command: 'backToMain' });
                 }
 
                 function deleteProject(projectId) {
-                    vscode.postMessage({ command: 'deleteProject', projectId: projectId });
+                    vscode.postMessage({ command: 'deleteProject', projectId });
                 }
 
-                function updateProject(projectId) {
-                    const newName = prompt('Enter new project name:');
-                    if (newName) {
-                        vscode.postMessage({ 
-                            command: 'updateProject', 
-                            projectId: projectId,
-                            newName: newName 
+                function updateProject(projectId, currentName) {
+                    document.querySelectorAll('.update-form').forEach(form => {
+                        form.style.display = 'none';
+                    });
+                    const updateForm = document.getElementById(\`update-form-\${projectId}\`);
+                    const nameInput = document.getElementById(\`new-name-\${projectId}\`);
+                    nameInput.value = currentName;
+                    updateForm.style.display = 'block';
+                }
+
+                function submitUpdate(projectId) {
+                    const newName = document.getElementById(\`new-name-\${projectId}\`).value;
+                    if (newName && newName.trim()) {
+                        vscode.postMessage({
+                            command: 'updateProject',
+                            projectId,
+                            newName: newName.trim()
                         });
+                        document.getElementById(\`update-form-\${projectId}\`).style.display = 'none';
                     }
+                }
+
+                function cancelUpdate(projectId) {
+                    document.getElementById(\`update-form-\${projectId}\`).style.display = 'none';
+                }
+
+                function syncProject(projectId) {
+                    vscode.postMessage({
+                        command: 'syncProject',
+                        projectId
+                    });
                 }
 
                 window.addEventListener('message', event => {
                     const message = event.data;
-                    console.log('Received message in projects view:', message);
                     switch (message.command) {
                         case 'displayProjects':
                             displayProjects(message.projects);
+                            break;
+                        case 'syncComplete':
+                            refreshProjects();
                             break;
                     }
                 });
@@ -441,9 +501,15 @@ class WebviewProvider {
                             <div class="project-header">
                                 <div class="project-title">\${project.projectName}</div>
                                 <div class="actions">
-                                    <button onclick="updateProject('\${project.id}')">Update</button>
+                                    <button onclick="updateProject('\${project.id}', '\${project.projectName}')">Update</button>
+                                    <button onclick="syncProject('\${project.id}')" class="sync-btn">Sync</button>
                                     <button class="delete-btn" onclick="deleteProject('\${project.id}')">Delete</button>
                                 </div>
+                            </div>
+                            <div id="update-form-\${project.id}" class="update-form" style="display: none;">
+                                <input type="text" id="new-name-\${project.id}" class="name-input" value="\${project.projectName}">
+                                <button onclick="submitUpdate('\${project.id}')">Save</button>
+                                <button onclick="cancelUpdate('\${project.id}')" class="cancel-btn">Cancel</button>
                             </div>
                             <div class="project-dates">
                                 Created: \${project.createdAt}<br>

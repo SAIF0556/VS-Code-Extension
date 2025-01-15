@@ -70,7 +70,7 @@ class SidebarProvider {
     
     // If not logged in, show login button
     if (!user) {
-      return [new SidebarItem("Login with Google", "extension.login")];
+      return [new SidebarItem("Sign in with Google", "extension.login")];
     }
 
     try {
