@@ -166,6 +166,75 @@ class ProjectManager {
             throw new Error(`Failed to delete project: ${error.message}`);
         }
     }
+     static async syncProject(projectId) {
+        try {
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("User not authenticated");
+            }
+
+            // Verify project exists and belongs to user
+            const projects = await this.listProjects();
+            const project = projects.find(p => p.id === projectId);
+            
+            if (!project) {
+                throw new Error("Project not found or access denied");
+            }
+
+            // Verify the workspace path exists
+            if (!project.workspacePath) {
+                throw new Error("Project workspace path not found");
+            }
+
+            // Check if the workspace path exists
+            const workspaceUri = vscode.Uri.file(project.workspacePath);
+            try {
+                await vscode.workspace.fs.stat(workspaceUri);
+            } catch (error) {
+                throw new Error(`Project folder not found at: ${project.workspacePath}`);
+            }
+
+            // Prompt user to open the workspace if it's not currently open
+            const currentWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            if (currentWorkspace !== project.workspacePath) {
+                const openWorkspace = await vscode.window.showWarningMessage(
+                    `This project is located at: ${project.workspacePath}\nDo you want to open this workspace?`,
+                    'Open Workspace',
+                    'Cancel'
+                );
+                
+                if (openWorkspace === 'Open Workspace') {
+                    await vscode.commands.executeCommand('vscode.openFolder', workspaceUri);
+                    // Wait for workspace to open
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    throw new Error("Sync cancelled - workspace needs to be open");
+                }
+            }
+
+            // Get updated file list from the workspace
+            const projectFiles = await vscode.workspace.findFiles("**/*");
+            const fileNames = projectFiles.map(file => 
+                vscode.workspace.asRelativePath(file)
+            );
+
+            // Update the project in Firebase
+            const projectRef = doc(db, "projects", projectId);
+            await updateDoc(projectRef, {
+                files: fileNames,
+                updatedAt: serverTimestamp()
+            });
+
+            debugLog('Project synced successfully:', projectId);
+            vscode.window.showInformationMessage(
+                `Project synced successfully. ${fileNames.length} files tracked.`
+            );
+
+        } catch (error) {
+            debugLog('Error syncing project:', error);
+            throw new Error(`Failed to sync project: ${error.message}`);
+        }
+    }
 
     static async getWorkspaceSuggestions() {
         try {

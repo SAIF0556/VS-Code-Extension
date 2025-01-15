@@ -38,7 +38,40 @@ function activate(context) {
     vscode.commands.registerCommand('extension.logout', async () => {
       await AuthService.logout()
     }),
+     vscode.commands.registerCommand('extension.updateProject', async () => {
+      try {
+        const projects = await ProjectManager.listProjects();
+        if (projects.length === 0) {
+          vscode.window.showInformationMessage('No projects to update.');
+          return;
+        }
 
+        const projectItems = projects.map(p => ({
+          label: p.projectName,
+          id: p.id,
+          description: p.workspacePath || 'Path not available'
+        }));
+
+        const selected = await vscode.window.showQuickPick(projectItems, {
+          placeHolder: 'Select a project to update'
+        });
+
+        if (selected) {
+          const newName = await vscode.window.showInputBox({
+            prompt: 'Enter new project name',
+            placeHolder: selected.label,
+            validateInput: text => text && text.length > 0 ? null : 'Project name is required'
+          });
+
+          if (newName) {
+            await ProjectManager.updateProject(selected.id, newName);
+            vscode.window.showInformationMessage(`Project renamed to "${newName}" successfully!`);
+          }
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to update project: ${error.message}`);
+      }
+    }),
     vscode.commands.registerCommand('extension.saveProject', async () => {
       try {
         const projectName = await vscode.window.showInputBox({
@@ -94,6 +127,32 @@ function activate(context) {
         vscode.window.showErrorMessage(
           `Failed to view projects: ${error.message}`,
         )
+      }
+    }),
+     vscode.commands.registerCommand('extension.syncProject', async () => {
+      try {
+        const projects = await ProjectManager.listProjects();
+        if (projects.length === 0) {
+          vscode.window.showInformationMessage('No projects to sync.');
+          return;
+        }
+
+        const projectItems = projects.map(p => ({
+          label: p.projectName,
+          id: p.id,
+          description: p.workspacePath || 'Path not available'
+        }));
+
+        const selected = await vscode.window.showQuickPick(projectItems, {
+          placeHolder: 'Select a project to sync'
+        });
+
+        if (selected) {
+          await ProjectManager.syncProject(selected.id);
+          vscode.window.showInformationMessage(`Project "${selected.label}" synced successfully!`);
+        }
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to sync project: ${error.message}`);
       }
     }),
 

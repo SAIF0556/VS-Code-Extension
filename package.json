@@ -52,6 +52,18 @@
       {
         "command": "extension.showMainInterface",
         "title": "Firebase: Show Dashboard"
+      },
+       {
+        "command": "extension.showMainInterface",
+        "title": "Firebase: Show Dashboard"
+      },
+      {
+        "command": "extension.updateProject",
+        "title": "Firebase: Update Project Name"
+      },
+      {
+        "command": "extension.syncProject",
+        "title": "Firebase: Sync Project Files"
       }
     ]
   },
