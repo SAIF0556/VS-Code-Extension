@@ -47,54 +47,53 @@ class AuthService {
     }
 
     static async handleTokens(req, res, port, state, webviewProvider) {
-    const urlParams = new URL(req.url, `http://localhost:${port}`).searchParams;
-    const accessToken = urlParams.get('access_token');
-    const receivedState = urlParams.get('state');
+        const urlParams = new URL(req.url, `http://localhost:${port}`).searchParams;
+        const accessToken = urlParams.get('access_token');
+        const receivedState = urlParams.get('state');
 
-    try {
-        // Validate state parameter first
-        if (receivedState !== state) {
-            debugLog('Invalid state parameter received');
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end('Invalid state parameter');
-            return;
+        try {
+            // Validate state parameter first
+            if (receivedState !== state) {
+                debugLog('Invalid state parameter received');
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end('Invalid state parameter');
+                return;
+            }
+
+            if (!accessToken) {
+                debugLog('No access token received');
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end('No access token provided');
+                return;
+            }
+
+            debugLog('Received OAuth callback tokens');
+            const userInfo = await AuthService.getUserInfo(accessToken);
+            debugLog('User info fetched:', userInfo.email);
+
+            const credential = GoogleAuthProvider.credential(null, accessToken);
+            await signInWithCredential(auth, credential);
+            debugLog('Firebase credential created and signed in');
+            
+            // Send success response
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end('Authentication successful');
+
+            // Show the main interface after successful login
+            if (webviewProvider) {
+                webviewProvider.showMainInterface();
+                vscode.window.showInformationMessage(`Logged in as ${userInfo.email}`);
+            }
+            
+        } catch (error) {
+            debugLog('Error during authentication:', error.message);
+            if (!res.headersSent) {
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                res.end(`Authentication failed: ${error.message}`);
+            }
+            vscode.window.showErrorMessage(`Authentication failed: ${error.message}`);
         }
-
-        if (!accessToken) {
-            debugLog('No access token received');
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end('No access token provided');
-            return;
-        }
-
-        debugLog('Received OAuth callback tokens');
-        const userInfo = await AuthService.getUserInfo(accessToken);
-        debugLog('User info fetched:', userInfo.email);
-
-        const credential = GoogleAuthProvider.credential(null, accessToken);
-        await signInWithCredential(auth, credential);
-        debugLog('Firebase credential created and signed in');
-        
-        // Send success response
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('Authentication successful');
-
-        // Show the main interface after successful login
-        if (webviewProvider) {
-            webviewProvider.showMainInterface();
-            vscode.window.showInformationMessage(`Logged in as ${userInfo.email}`);
-        }
-        
-    } catch (error) {
-        debugLog('Error during authentication:', error.message);
-        // Only send error response if headers haven't been sent
-        if (!res.headersSent) {
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end(`Authentication failed: ${error.message}`);
-        }
-        vscode.window.showErrorMessage(`Authentication failed: ${error.message}`);
     }
-}
 
     static async logout() {
         try {
@@ -108,21 +107,65 @@ class AuthService {
     static getCallbackHtml() {
         return `
             <!DOCTYPE html>
-            <html>
+            <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Authentication</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                            background-color: #f4f4f9;
+                            color: #333;
+                        }
+                        .container {
+                            text-align: center;
+                            padding: 20px;
+                            background: #ffffff;
+                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                            border-radius: 10px;
+                            max-width: 400px;
+                        }
+                        .message {
+                            font-size: 1.2rem;
+                            margin-bottom: 1rem;
+                        }
+                        .success {
+                            color: #4CAF50;
+                            display: none;
+                        }
+                    </style>
+                </head>
                 <body>
+                    <div class="container">
+                        <h1 id="processingMsg" class="message">Processing authentication...</h1>
+                        <h1 id="successMsg" class="message success">Successfully signed in! You can close this window.</h1>
+                    </div>
                     <script>
                         const params = new URLSearchParams(window.location.hash.substring(1));
                         const accessToken = params.get('access_token');
                         const state = params.get('state');
                         
-                        fetch('/oauth/tokens?' + new URLSearchParams({
-                            access_token: accessToken,
-                            state: state
-                        })).then(() => {
-                            document.body.innerHTML = '<h1>Successfully signed in! You can close this window.</h1>';
-                        });
+                        if (accessToken && state) {
+                            fetch('/oauth/tokens?' + new URLSearchParams({
+                                access_token: accessToken,
+                                state: state
+                            })).then(response => {
+                                if (response.ok) {
+                                    document.getElementById('processingMsg').style.display = 'none';
+                                    document.getElementById('successMsg').style.display = 'block';
+                                    setTimeout(() => {
+                                        window.close();
+                                    }, 2000);
+                                }
+                            });
+                        }
                     </script>
-                    <h1>Processing authentication...</h1>
                 </body>
             </html>
         `;

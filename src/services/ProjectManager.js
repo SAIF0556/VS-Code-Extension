@@ -1,11 +1,10 @@
-// src/services/ProjectManager.js
 const vscode = require("vscode");
 const { 
     collection, 
     addDoc, 
     getDocs, 
     deleteDoc,
-    updateDoc,  // Added updateDoc here
+    updateDoc,
     doc, 
     query, 
     where, 
@@ -16,33 +15,33 @@ const { debugLog } = require("../utils/debug");
 
 class ProjectManager {
     static async listProjects() {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            throw new Error("User not authenticated");
+        try {
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("User not authenticated");
+            }
+
+            const projectsRef = collection(db, "projects");
+            const q = query(projectsRef, where("userId", "==", user.uid));
+            const querySnapshot = await getDocs(q);
+            
+            console.log('Projects fetched:', querySnapshot.size);
+            
+            const projects = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                console.log('Project data:', { id: doc.id, ...data });
+                return {
+                    id: doc.id,
+                    ...data
+                };
+            });
+
+            return projects;
+        } catch (error) {
+            console.error('Error listing projects:', error);
+            throw new Error(`Failed to list projects: ${error.message}`);
         }
-
-        const projectsRef = collection(db, "projects");
-        const q = query(projectsRef, where("userId", "==", user.uid));
-        const querySnapshot = await getDocs(q);
-        
-        console.log('Projects fetched:', querySnapshot.size);
-        
-        const projects = querySnapshot.docs.map(doc => {
-            const data = doc.data();
-            console.log('Project data:', { id: doc.id, ...data });
-            return {
-                id: doc.id,
-                ...data
-            };
-        });
-
-        return projects;
-    } catch (error) {
-        console.error('Error listing projects:', error);
-        throw new Error(`Failed to list projects: ${error.message}`);
     }
-}
 
     static async saveProject(projectName) {
         try {
@@ -51,6 +50,7 @@ class ProjectManager {
                 throw new Error("No workspace is open");
             }
 
+            const workspacePath = workspaceFolders[0].uri.fsPath;
             const projectFiles = await vscode.workspace.findFiles("**/*");
             const fileNames = projectFiles.map(file => 
                 vscode.workspace.asRelativePath(file)
@@ -64,6 +64,7 @@ class ProjectManager {
             const docRef = await addDoc(collection(db, "projects"), {
                 userId: user.uid,
                 projectName,
+                workspacePath,
                 files: fileNames,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -74,6 +75,70 @@ class ProjectManager {
         } catch (error) {
             debugLog('Error saving project:', error);
             throw new Error(`Failed to save project: ${error.message}`);
+        }
+    }
+
+    static async updateProject(projectId, newName) {
+        try {
+            const user = auth.currentUser;
+            if (!user) {
+                throw new Error("User not authenticated");
+            }
+
+            // Verify project exists and belongs to user
+            const projects = await this.listProjects();
+            const project = projects.find(p => p.id === projectId);
+            
+            if (!project) {
+                throw new Error("Project not found or access denied");
+            }
+
+            // Get current workspace path
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                throw new Error("No workspace is open");
+            }
+
+            const currentWorkspacePath = workspaceFolders[0].uri.fsPath;
+
+            // Check if workspace path matches
+            if (project.workspacePath && project.workspacePath !== currentWorkspacePath) {
+                const openWorkspace = await vscode.window.showWarningMessage(
+                    `This project was last saved in: ${project.workspacePath}\nCurrent workspace: ${currentWorkspacePath}`,
+                    'Update Anyway',
+                    'Cancel'
+                );
+                
+                if (openWorkspace !== 'Update Anyway') {
+                    throw new Error("Workspace mismatch - update cancelled");
+                }
+            }
+
+            // Get updated file list
+            const projectFiles = await vscode.workspace.findFiles("**/*");
+            const fileNames = projectFiles.map(file => 
+                vscode.workspace.asRelativePath(file)
+            );
+
+            // Update the project
+            const projectRef = doc(db, "projects", projectId);
+            await updateDoc(projectRef, {
+                projectName: newName,
+                workspacePath: currentWorkspacePath,
+                files: fileNames,
+                updatedAt: serverTimestamp()
+            });
+
+            debugLog('Project updated successfully:', projectId);
+            
+            // Show success message with file count
+            vscode.window.showInformationMessage(
+                `Project updated successfully. ${fileNames.length} files tracked.`
+            );
+
+        } catch (error) {
+            debugLog('Error updating project:', error);
+            throw new Error(`Failed to update project: ${error.message}`);
         }
     }
 
@@ -102,32 +167,13 @@ class ProjectManager {
         }
     }
 
-    static async updateProject(projectId, newName) {
+    static async getWorkspaceSuggestions() {
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error("User not authenticated");
-            }
-
-            // Verify project exists and belongs to user
-            const projects = await this.listProjects();
-            const project = projects.find(p => p.id === projectId);
-            
-            if (!project) {
-                throw new Error("Project not found or access denied");
-            }
-
-            // Update the project
-            const projectRef = doc(db, "projects", projectId);
-            await updateDoc(projectRef, {
-                projectName: newName,
-                updatedAt: serverTimestamp()
-            });
-
-            debugLog('Project updated successfully:', projectId);
+            const recentWorkspaces = await vscode.workspace.recentWorkspaces;
+            return recentWorkspaces.map(uri => uri.fsPath);
         } catch (error) {
-            debugLog('Error updating project:', error);
-            throw new Error(`Failed to update project: ${error.message}`);
+            debugLog('Error getting workspace suggestions:', error);
+            return [];
         }
     }
 }
