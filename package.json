@@ -1,72 +1,62 @@
 {
   "name": "saif-firebase-plugin",
-  "displayName": "saif-firebase-plugin",
-  "description": "a pluging to connect your folder to forebase",
+  "displayName": "Saif Firebase Plugin",
   "version": "0.0.1",
+  "publisher": "saif-firebase-plugin",
   "engines": {
-    "vscode": "^1.96.0"
+    "vscode": "^1.74.0"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [],
   "main": "./extension.js",
+  "activationEvents": [
+    "onView:firebaseSidebar"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "firebase-sidebar",
-          "title": "Firebase",
-          "icon": "media/plugin.svg"
+          "id": "firebase-explorer",
+          "title": "Firebase Projects",
+          "icon": "resources/firebase.svg"
+        }
+      ]
+    },
+    "views": {
+      "firebase-explorer": [
+        {
+          "id": "firebaseSidebar",
+          "name": "Firebase"
         }
       ]
     },
     "commands": [
       {
-        "command": "saif-firebase-plugin.helloWorld",
-        "title": "Hello World"
+        "command": "extension.login",
+        "title": "Firebase: Login with Google"
       },
       {
-        "command": "extension.login",
-        "title": "Sign in with Google"
+        "command": "extension.logout",
+        "title": "Firebase: Logout"
       },
       {
         "command": "extension.saveProject",
-        "title": "Save Current Project"
+        "title": "Firebase: Save New Project"
       },
       {
-        "command": "extension.listProjects",
-        "title": "List Projects"
+        "command": "extension.viewAllProjects",
+        "title": "Firebase: View All Projects"
+      },
+      {
+        "command": "extension.deleteProject",
+        "title": "Firebase: Delete Project"
+      },
+      {
+        "command": "extension.showMainInterface",
+        "title": "Firebase: Show Dashboard"
       }
-    ],
-    "views": {
-      "firebase-sidebar": [
-        {
-          "id": "firebaseSidebar",
-          "name": "Firebase",
-          "type": "tree"
-        }
-      ]
-    }
-  },
-  "scripts": {
-    "lint": "eslint .",
-    "pretest": "npm run lint",
-    "test": "vscode-test"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "20.x",
-    "@types/vscode": "^1.96.0",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1",
-    "eslint": "^9.16.0"
+    ]
   },
   "dependencies": {
-    "axios": "^1.7.9",
-    "firebase": "^11.1.0",
-    "firebase-admin": "^13.0.2",
-    "node-fetch": "^2.7.0",
-    "open": "^10.1.0"
+    "firebase": "^9.x.x",
+    "node-fetch": "^2.x.x"
   }
 }

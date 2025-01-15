@@ -9,22 +9,50 @@ class SidebarProvider {
   constructor() {
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
-    this.lastRefreshTime = 0;
-    this.isRefreshing = false;
+    this._isLoading = false;
+    this._initialized = false;
+    this._cachedProjects = [];
+    this._lastRefreshTime = 0;
+    this._refreshTimeout = null;
+
+    // Set up auth state listener
+    auth.onAuthStateChanged((user) => {
+      debugLog('Auth state changed in SidebarProvider:', user ? `User logged in: ${user.email}` : 'User logged out');
+      this._initialized = true;
+      this._triggerRefresh();
+    });
   }
 
-  async refresh() {
+  _triggerRefresh() {
+    // Clear any pending refresh
+    if (this._refreshTimeout) {
+      clearTimeout(this._refreshTimeout);
+    }
+
+    // Debounce refresh to prevent multiple rapid updates
+    this._refreshTimeout = setTimeout(() => {
+      this._onDidChangeTreeData.fire();
+      this._refreshTimeout = null;
+    }, 1000);
+  }
+
+  async _fetchProjects() {
+    // Only fetch if enough time has passed since last fetch
     const now = Date.now();
-    if (this.isRefreshing || (now - this.lastRefreshTime) < 2000) {
-      return;
+    if (now - this._lastRefreshTime < 5000) {
+      return this._cachedProjects;
     }
 
     try {
-      this.isRefreshing = true;
-      this._onDidChangeTreeData.fire();
-      this.lastRefreshTime = now;
+      this._isLoading = true;
+      this._cachedProjects = await ProjectManager.listProjects();
+      this._lastRefreshTime = now;
+      return this._cachedProjects;
+    } catch (error) {
+      debugLog('Error fetching projects:', error.message);
+      return [];
     } finally {
-      this.isRefreshing = false;
+      this._isLoading = false;
     }
   }
 
@@ -33,38 +61,48 @@ class SidebarProvider {
   }
 
   async getChildren() {
+    // If not initialized, show loading
+    if (!this._initialized) {
+      return [new SidebarItem("Initializing...", "")];
+    }
+
+    const user = auth.currentUser;
+    
+    // If not logged in, show login button
+    if (!user) {
+      return [new SidebarItem("Login with Google", "extension.login")];
+    }
+
     try {
-      const user = auth.currentUser;
-      
-      if (!user) {
-        return [
-          new SidebarItem("Login with Google", "extension.login"),
-        ];
-      }
+      // Fetch projects if needed
+      const projects = await this._fetchProjects();
 
-      if (!this._cachedProjects || (Date.now() - this._lastCacheTime) > 5000) {
-        this._cachedProjects = await ProjectManager.listProjects();
-        this._lastCacheTime = Date.now();
-      }
-
-      // Create project items with delete functionality
-      const projectItems = this._cachedProjects.map(project => {
+      // Create project items
+      const projectItems = projects.map(project => {
         const item = new ProjectItem(project.projectName, project.id, project.files);
-        item.contextValue = 'project'; // This enables context menu items
+        item.contextValue = 'project';
         return item;
       });
-      
+
+      // Return the full sidebar structure
       return [
-        new SidebarGroupItem("My Projects", projectItems),
+        new SidebarGroupItem("My Projects", projectItems.length > 0 ? projectItems : [
+          new SidebarItem("No projects yet", "")
+        ]),
         new SidebarItem("Save New Project", "extension.saveProject"),
         new SidebarItem("View All Projects", "extension.viewAllProjects"),
         new SidebarItem("Delete Project", "extension.deleteProject"),
-        new SidebarItem("Logout", "extension.logout"),
+        new SidebarItem("Logout", "extension.logout")
       ];
     } catch (error) {
       debugLog('Error in getChildren:', error.message);
-      return [];
+      return [new SidebarItem("Error loading sidebar", "")];
     }
+  }
+
+  refresh() {
+    this._lastRefreshTime = 0; // Reset cache timer to force refresh
+    this._triggerRefresh();
   }
 }
 
