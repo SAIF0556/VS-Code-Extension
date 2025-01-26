@@ -1,65 +1,128 @@
-# saif-firebase-plugin README
+# Firebase VSCode Plugin
 
-This is the README for your extension "saif-firebase-plugin". After writing up a brief description, we recommend including the following sections.
+A Visual Studio Code extension that helps you manage your Firebase projects directly from your IDE. This plugin provides a seamless integration between your local development environment and Firebase services.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Google Authentication**: Securely sign in with your Google account to access your Firebase projects
+- **Project Management**:
+  - Create new Firebase projects from your current workspace
+  - View and manage all your Firebase projects
+  - Update project names and configurations
+  - Delete projects when no longer needed
+  - Sync project files with Firebase
+- **Sidebar Integration**: Quick access to all Firebase-related commands through a dedicated sidebar
+- **File Tracking**: Automatically tracks and syncs your project files
+- **Workspace Support**: Handles multiple workspace configurations
 
-For example if there is an image subfolder under your extension project workspace:
+## Installation
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+1. Open Visual Studio Code
+2. Go to the Extensions view by clicking on the Extensions icon in the Activity Bar
+3. Search for "Saif Firebase Plugin"
+4. Click Install
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- Visual Studio Code ^1.74.0
+- Active Firebase account
+- Node.js and npm installed on your system
+
+## Usage
+
+### Authentication
+
+1. Click on the Firebase icon in the Activity Bar
+2. Click "Sign in with Google"
+3. Complete the authentication process in your browser
+
+### Managing Projects
+
+#### Create a New Project
+1. Open the workspace/folder you want to save as a Firebase project
+2. Click "Save New Project" in the sidebar
+3. Enter a project name when prompted
+
+#### View Projects
+1. Click "View All Projects" in the sidebar
+2. Browse through your saved projects
+3. View project details including:
+   - Project name
+   - Creation date
+   - Last update date
+   - Tracked files
+
+#### Update Project
+1. Select a project from the projects view
+2. Click the "Update" button
+3. Enter the new project name
+4. Confirm the changes
+
+#### Sync Project
+1. Select a project from the projects view
+2. Click the "Sync" button
+3. If needed, confirm workspace path changes
+4. Wait for the sync completion message
+
+#### Delete Project
+1. Select a project from the projects view
+2. Click the "Delete" button
+3. Confirm the deletion
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+* `firebase-plugin.enable`: Enable/disable the extension
+* `firebase-plugin.debug`: Enable/disable debug logging
+
+## Security
+
+- Authentication is handled securely through Google OAuth
+- Firebase configuration and credentials are stored securely
+- No sensitive information is stored in plain text
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+No major issues currently known. Please report any bugs or feature requests on our GitHub repository.
 
-## Release Notes
+## Contributing
 
-Users appreciate release notes as you update your extension.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### 1.0.0
+## Building
 
-Initial release of ...
+```bash
+# Install dependencies
+npm install
 
-### 1.0.1
+# Package the extension
+npm run package
 
-Fixed issue #.
 
-### 1.1.0
+```
 
-Added features X, Y, and Z.
+## Technology Stack
+
+- Visual Studio Code Extension API
+- Firebase Authentication
+- Firebase Firestore
+- Node.js
+- Electron (for desktop builds)
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support, please open an issue in the GitHub repository or contact the development team.
 
 ---
 
-## Working with Markdown
+**Note**: This extension requires appropriate Firebase credentials and configurations to be set up in your development environment. Make sure you have the necessary Firebase project settings before using the extension.
 
-You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
