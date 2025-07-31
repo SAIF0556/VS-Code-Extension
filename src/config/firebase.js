@@ -4,13 +4,13 @@ const { getAuth } = require("firebase/auth");
 const { getFirestore } = require("firebase/firestore");
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAJn4YIQ8if8W-wFaqq4u898XLSHBDLFec",
-  authDomain: "vs-code-plugin-453ae.firebaseapp.com",
-  projectId: "vs-code-plugin-453ae",
-  storageBucket: "vs-code-plugin-453ae.firebasestorage.app",
-  messagingSenderId: "414560570386",
-  appId: "1:414560570386:web:ba07a941ce459fd9171ccb",
-  clientId: "414560570386-35usvjqlcp7dgp4q4n1qgd2tlac68qea.apps.googleusercontent.com"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "",
+  clientId: process.env.REACT_APP_FIREBASE_CLIENT_ID || "" // Note: clientId is less common for Firebase web SDK
 };
 
 const app = initializeApp(firebaseConfig);
